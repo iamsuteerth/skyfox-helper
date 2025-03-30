@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/types"
 )
@@ -26,6 +27,9 @@ func (v *StrictValidator) Validate(req types.PaymentRequest) []types.ValidationE
 
 	// CVV validation
 	errors = append(errors, validateCVV(req.CVV)...)
+
+	// Expiry validation
+	errors = append(errors, validateExpiry(req.Expiry)...)
 
 	// Other validations (to be implemented later)
 
@@ -117,4 +121,54 @@ func validateCVV(cvv string) []types.ValidationError {
 func atoi(num string) int {
 	val, _ := strconv.Atoi(num) // Conversion without crashing
 	return val
+}
+
+func validateExpiry(expiry string) []types.ValidationError {
+	var errs []types.ValidationError
+
+	// Format validation
+	if !regexp.MustCompile(`^(0[1-9]|1[0-2])/(\d{2})$`).MatchString(expiry) {
+		errs = append(errs, types.ValidationError{
+			Field:   "expiry",
+			Message: "Expiry must be in MM/YY format with valid month (01-12)",
+		})
+		return errs
+	}
+
+	parts := strings.Split(expiry, "/")
+	month, _ := strconv.Atoi(parts[0])
+	year2Digit, _ := strconv.Atoi(parts[1])
+
+	now := time.Now().UTC()
+	currentYear := now.Year()
+
+	// Year calculation with proper century handling
+	fullYear := currentYear/100*100 + year2Digit
+	if fullYear < currentYear {
+		fullYear += 100
+	}
+
+	// 20-year validation
+	if fullYear > currentYear+20 {
+		errs = append(errs, types.ValidationError{
+			Field:   "expiry",
+			Message: "Expiry cannot exceed 20 years from now",
+		})
+		return errs // Early return for unrecoverable error
+	}
+
+	// Calculate expiry moment (last nanosecond of the month)
+	expiryTime := time.Date(fullYear, time.Month(month), 1, 0, 0, 0, 0, time.UTC).
+		AddDate(0, 1, 0).     // First day of next month
+		Add(-time.Nanosecond) // Last moment of expiry month
+
+	// Time comparison (UTC)
+	if now.After(expiryTime) {
+		errs = append(errs, types.ValidationError{
+			Field:   "expiry",
+			Message: "Card has expired",
+		})
+	}
+
+	return errs
 }

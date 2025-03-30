@@ -110,3 +110,55 @@ func TestCVVValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestExpiryDateValidation(t *testing.T) {
+	v := validator.NewStrictValidator()
+	now := time.Now()
+
+	currentMonthYear := now.Format("01/06")
+	nextMonth := now.AddDate(0, 1, 0).Format("01/06")
+	lastMonth := now.AddDate(0, 0, -31).Format("01/06")
+	twoMonthsAgo := now.AddDate(0, -2, 0).Format("01/06")
+
+	tests := []struct {
+		name       string
+		expiry     string
+		wantErrors int
+	}{
+		{name: "ValidExpiryFutureDate", expiry: "12/30", wantErrors: 0},
+		{name: "EmptyExpiry", expiry: "", wantErrors: 1},
+		{name: "InvalidFormatExpiry", expiry: "1230", wantErrors: 1},
+		{name: "ExpiredDate", expiry: "01/20", wantErrors: 1},
+		{name: "TooFutureDate", expiry: "01/50", wantErrors: 1},
+		{name: "CurrentMonthYear", expiry: currentMonthYear, wantErrors: 0},
+		{name: "NextMonthYear", expiry: nextMonth, wantErrors: 0},
+		{name: "ExpiredYearsAgo", expiry: "12/19", wantErrors: 1},
+		{name: "LastMonthExpiry", expiry: lastMonth, wantErrors: 1},
+		{name: "ExpiredTwoMonthsAgo", expiry: twoMonthsAgo, wantErrors: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := types.PaymentRequest{
+				CardNumber: "4242424242424242",
+				CVV:        "123",
+				Expiry:     tc.expiry,
+				Name:       "John Doe",
+				Timestamp:  time.Now(),
+			}
+
+			errors := v.Validate(req)
+			var foundExpiryErrors int
+			for _, err := range errors {
+				if err.Field == "expiry" {
+					foundExpiryErrors++
+				}
+			}
+
+			if foundExpiryErrors != tc.wantErrors {
+				t.Errorf("Expected %d errors for expiry '%s', got %d",
+					tc.wantErrors, tc.expiry, foundExpiryErrors)
+			}
+		})
+	}
+}
