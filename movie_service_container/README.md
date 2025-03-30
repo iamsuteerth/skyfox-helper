@@ -1,11 +1,27 @@
-# movie-service
+# Movie API Service ![AWS](https://img.shields.io/badge/Cloud-AWS-orange)
 
-movie api to get movie details
+Movie API service leveraging AWS serverless and container ecosystem. Ruby Sinatra application containerized.
 
-**`get /movies` - returns list of all movies**
+[Docker Image Here](https://hub.docker.com/repository/docker/iamsuteerth/movie-service)
 
-Example response:
+## 🌟 Features
+- REST API with authentication
+- Auto-scaling container infrastructure
+- Secure AWS Secrets Manager integration
+- Regional API Gateway deployment
+- Private networking configuration
 
+## 📚 API Documentation
+
+### `GET /movies`
+**Authentication**: API Key required<br>
+**Action**: List of all movies<br>
+**Error Handling**:
+- `200 OK`: Movies found
+- `404 Not Found`: JSON error message
+- `403 Forbidden`: Invalid API key  
+
+**Example Response**:  
 ```
 [
     {
@@ -39,10 +55,17 @@ Example response:
 ]
 ```
 
-------------
+---
 
-**`get /movie/:id` - returns single movie details matching movie id**
+### `GET /movie/:id`
+**Authentication**: API Key required<br>
+**Action**: Movie detail with specified id<br>
+**Error Handling**:
+- `200 OK`: Valid movie found
+- `404 Not Found`: JSON error message
+- `403 Forbidden`: Invalid API key  
 
+**Example Response**:  
 ```
 {
     "@type": "imdb.api.title.title",
@@ -58,3 +81,29 @@ Example response:
     "year": 2020
   }
 ```
+
+## 🛠 Architecture Overview
+
+![AWS Architecture](aws_architecture.jpg)
+
+**Key Components**:
+| Service              | Configuration               | Purpose                             |
+|----------------------|-----------------------------|-------------------------------------|
+| API Gateway          | Regional endpoint           | API Authentication/Routing          |
+| Application LB       | skyfoxHelperSG (IP whitelist)| Traffic distribution                 |
+| ECS Fargate          | movie-service task          | Container orchestration              |
+| Secrets Manager       | ecs/docker_creds            | Secure credential storage            |
+
+## 🔒 Security
+- **API Key Authentication**: Mandatory x-api-key header
+- **Network Security**:
+  - ALB locked to API Gateway IP ranges
+  - ECS tasks in private subnets
+  - HTTPS enforced at API Gateway
+- **Credential Management**:
+  ```
+  {
+    "AWSAccessKey": "via-IAM-role",
+    "DockerHubCreds": "secretsmanager"
+  }
+  ```
