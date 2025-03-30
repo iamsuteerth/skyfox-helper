@@ -1,0 +1,8 @@
+# Local development
+.env
+bin/
+tmp/
+
+# Go
+vendor/
+go.sum
