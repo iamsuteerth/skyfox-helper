@@ -171,14 +171,15 @@ func TestNameValidation(t *testing.T) {
 		inputName  string
 		wantErrors int
 	}{
-		{name: "ValidName", inputName: "John Doe", wantErrors: 0},
-		{name: "SingleCharacterName", inputName: "J", wantErrors: 1},
-		{name: "ExceedsMaxLength", inputName: "ThisIsAnExtremelyLongNameThatExceedsMaxLength", wantErrors: 1},
-		{name: "NonASCIIName", inputName: "Jöhn Dœ", wantErrors: 1},
-		{name: "NameWithConsecutiveSpaces", inputName: "John  Doe", wantErrors: 1},
-		{name: "NameWithLeadingSpaces", inputName: " John Doe", wantErrors: 1},
-		{name: "NameWithTrailingSpaces", inputName: "John Doe ", wantErrors: 1},
 		{name: "EmptyName", inputName: "", wantErrors: 1},
+		{name: "ValidName", inputName: "M K V Vedy", wantErrors: 0},
+		{name: "ValidWithHyphen", inputName: "Jean-Luc Picard", wantErrors: 0},
+		{name: "ValidWithApostrophe", inputName: "O'Connor", wantErrors: 0},
+		{name: "TrimmedName", inputName: "  John Doe  ", wantErrors: 0}, // Auto-trimmed
+		{name: "SingleCharacter", inputName: "X", wantErrors: 1},
+		{name: "WithNumbers", inputName: "John314", wantErrors: 1},
+		{name: "ConsecutiveSpaces", inputName: "John  Doe", wantErrors: 1},
+		{name: "SpecialCharacters", inputName: "John@Doe", wantErrors: 1},
 	}
 
 	for _, tc := range tests {
@@ -192,7 +193,7 @@ func TestNameValidation(t *testing.T) {
 			}
 
 			errors := v.Validate(req)
-			var foundNameErrors int
+			foundNameErrors := 0
 			for _, err := range errors {
 				if err.Field == "name" {
 					foundNameErrors++
@@ -200,8 +201,8 @@ func TestNameValidation(t *testing.T) {
 			}
 
 			if foundNameErrors != tc.wantErrors {
-				t.Errorf("Expected %d errors for name '%s', got %d",
-					tc.wantErrors, tc.inputName, foundNameErrors)
+				t.Errorf("%s: Expected %d errors, got %d - Input: '%s'",
+					tc.name, tc.wantErrors, foundNameErrors, tc.inputName)
 			}
 		})
 	}

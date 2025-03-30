@@ -159,9 +159,7 @@ func validateExpiry(expiry string) []types.ValidationError {
 	}
 
 	// Calculate expiry moment (last nanosecond of the month)
-	expiryTime := time.Date(fullYear, time.Month(month), 1, 0, 0, 0, 0, time.UTC).
-		AddDate(0, 1, 0).     // First day of next month
-		Add(-time.Nanosecond) // Last moment of expiry month
+	expiryTime := time.Date(fullYear, time.Month(month+1), 0, 23, 59, 59, 999999999, time.UTC)
 
 	// Time comparison (UTC)
 	if now.After(expiryTime) {
@@ -177,7 +175,9 @@ func validateExpiry(expiry string) []types.ValidationError {
 func validateName(name string) []types.ValidationError {
 	var errs []types.ValidationError
 
-	// Name should not be empty
+	// Trim leading/trailing spaces first
+	name = strings.TrimSpace(name)
+
 	if len(name) == 0 {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
@@ -186,36 +186,25 @@ func validateName(name string) []types.ValidationError {
 		return errs
 	}
 
-	// Name length constraints
+	// Allow letters, spaces, apostrophes, and hyphens
+	if !regexp.MustCompile(`^[a-zA-Z\s'-]+$`).MatchString(name) {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name must contain only letters, spaces, apostrophes, and hyphens",
+		})
+	}
+
 	if len(name) < 2 || len(name) > 40 {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
-			Message: "Name must be between 2 and 40 characters",
-		})
-		return errs
-	}
-
-	// Ensure ASCII printable characters only
-	if !regexp.MustCompile(`^[\x20-\x7E]+$`).MatchString(name) {
-		errs = append(errs, types.ValidationError{
-			Field:   "name",
-			Message: "Name must contain only ASCII printable characters",
+			Message: "Name must be between 2-40 characters",
 		})
 	}
 
-	// Check for consecutive spaces
 	if strings.Contains(name, "  ") {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
-			Message: "Name must not contain consecutive spaces",
-		})
-	}
-
-	// Check for leading/trailing spaces
-	if strings.HasPrefix(name, " ") || strings.HasSuffix(name, " ") {
-		errs = append(errs, types.ValidationError{
-			Field:   "name",
-			Message: "Name must not have leading or trailing spaces",
+			Message: "Consecutive spaces are not allowed",
 		})
 	}
 
