@@ -162,3 +162,47 @@ func TestExpiryDateValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestNameValidation(t *testing.T) {
+	v := validator.NewStrictValidator()
+
+	tests := []struct {
+		name       string
+		inputName  string
+		wantErrors int
+	}{
+		{name: "ValidName", inputName: "John Doe", wantErrors: 0},
+		{name: "SingleCharacterName", inputName: "J", wantErrors: 1},
+		{name: "ExceedsMaxLength", inputName: "ThisIsAnExtremelyLongNameThatExceedsMaxLength", wantErrors: 1},
+		{name: "NonASCIIName", inputName: "Jöhn Dœ", wantErrors: 1},
+		{name: "NameWithConsecutiveSpaces", inputName: "John  Doe", wantErrors: 1},
+		{name: "NameWithLeadingSpaces", inputName: " John Doe", wantErrors: 1},
+		{name: "NameWithTrailingSpaces", inputName: "John Doe ", wantErrors: 1},
+		{name: "EmptyName", inputName: "", wantErrors: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := types.PaymentRequest{
+				CardNumber: "4242424242424242",
+				CVV:        "123",
+				Expiry:     "12/30",
+				Name:       tc.inputName,
+				Timestamp:  time.Now(),
+			}
+
+			errors := v.Validate(req)
+			var foundNameErrors int
+			for _, err := range errors {
+				if err.Field == "name" {
+					foundNameErrors++
+				}
+			}
+
+			if foundNameErrors != tc.wantErrors {
+				t.Errorf("Expected %d errors for name '%s', got %d",
+					tc.wantErrors, tc.inputName, foundNameErrors)
+			}
+		})
+	}
+}

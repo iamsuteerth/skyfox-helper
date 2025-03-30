@@ -31,7 +31,8 @@ func (v *StrictValidator) Validate(req types.PaymentRequest) []types.ValidationE
 	// Expiry validation
 	errors = append(errors, validateExpiry(req.Expiry)...)
 
-	// Other validations (to be implemented later)
+	// Name validation
+	errors = append(errors, validateName(req.Name)...)
 
 	return errors
 }
@@ -167,6 +168,54 @@ func validateExpiry(expiry string) []types.ValidationError {
 		errs = append(errs, types.ValidationError{
 			Field:   "expiry",
 			Message: "Card has expired",
+		})
+	}
+
+	return errs
+}
+
+func validateName(name string) []types.ValidationError {
+	var errs []types.ValidationError
+
+	// Name should not be empty
+	if len(name) == 0 {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name cannot be empty",
+		})
+		return errs
+	}
+
+	// Name length constraints
+	if len(name) < 2 || len(name) > 40 {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name must be between 2 and 40 characters",
+		})
+		return errs
+	}
+
+	// Ensure ASCII printable characters only
+	if !regexp.MustCompile(`^[\x20-\x7E]+$`).MatchString(name) {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name must contain only ASCII printable characters",
+		})
+	}
+
+	// Check for consecutive spaces
+	if strings.Contains(name, "  ") {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name must not contain consecutive spaces",
+		})
+	}
+
+	// Check for leading/trailing spaces
+	if strings.HasPrefix(name, " ") || strings.HasSuffix(name, " ") {
+		errs = append(errs, types.ValidationError{
+			Field:   "name",
+			Message: "Name must not have leading or trailing spaces",
 		})
 	}
 
