@@ -22,16 +22,9 @@ func NewStrictValidator() *StrictValidator {
 func (v *StrictValidator) Validate(req types.PaymentRequest) []types.ValidationError {
 	var errors []types.ValidationError
 
-	// Card number validation
 	errors = append(errors, validateCardNumber(req.CardNumber)...)
-
-	// CVV validation
 	errors = append(errors, validateCVV(req.CVV)...)
-
-	// Expiry validation
 	errors = append(errors, validateExpiry(req.Expiry)...)
-
-	// Name validation
 	errors = append(errors, validateName(req.Name)...)
 
 	return errors
@@ -39,8 +32,6 @@ func (v *StrictValidator) Validate(req types.PaymentRequest) []types.ValidationE
 
 func validateCardNumber(cardNumber string) []types.ValidationError {
 	var errs []types.ValidationError
-
-	// Ensure card number is digits only
 	if !regexp.MustCompile(`^\d{16}$`).MatchString(cardNumber) {
 		errs = append(errs, types.ValidationError{
 			Field:   "card_number",
@@ -48,8 +39,6 @@ func validateCardNumber(cardNumber string) []types.ValidationError {
 		})
 		return errs
 	}
-
-	// Luhn algorithm check
 	if !isValidLuhn(cardNumber) {
 		errs = append(errs, types.ValidationError{
 			Field:   "card_number",
@@ -63,18 +52,16 @@ func validateCardNumber(cardNumber string) []types.ValidationError {
 func isValidLuhn(cardNumber string) bool {
 	var sum int
 	reversed := reverseString(cardNumber)
-
 	for i, digit := range reversed {
 		n := int(digit - '0')
-		if i%2 == 1 { // Double every second digit
+		if i%2 == 1 {
 			n *= 2
-			if n > 9 { // Subtract 9 if the result is greater than 9
+			if n > 9 {
 				n -= 9
 			}
 		}
 		sum += n
 	}
-
 	return sum%10 == 0
 }
 
@@ -89,7 +76,6 @@ func reverseString(s string) string {
 func validateCVV(cvv string) []types.ValidationError {
 	var errs []types.ValidationError
 
-	// CVV should be numeric
 	if !regexp.MustCompile(`^\d+$`).MatchString(cvv) {
 		errs = append(errs, types.ValidationError{
 			Field:   "cvv",
@@ -97,8 +83,6 @@ func validateCVV(cvv string) []types.ValidationError {
 		})
 		return errs
 	}
-
-	// CVV should be 3 digits
 	if len(cvv) != 3 {
 		errs = append(errs, types.ValidationError{
 			Field:   "cvv",
@@ -106,8 +90,6 @@ func validateCVV(cvv string) []types.ValidationError {
 		})
 		return errs
 	}
-
-	// CVV should be between 001 and 999
 	cvvInt := atoi(cvv)
 	if cvvInt < 1 || cvvInt > 999 {
 		errs = append(errs, types.ValidationError{
@@ -115,19 +97,17 @@ func validateCVV(cvv string) []types.ValidationError {
 			Message: "CVV must be between 001 and 999",
 		})
 	}
-
 	return errs
 }
 
 func atoi(num string) int {
-	val, _ := strconv.Atoi(num) // Conversion without crashing
+	val, _ := strconv.Atoi(num)
 	return val
 }
 
 func validateExpiry(expiry string) []types.ValidationError {
 	var errs []types.ValidationError
 
-	// Format validation
 	if !regexp.MustCompile(`^(0[1-9]|1[0-2])/(\d{2})$`).MatchString(expiry) {
 		errs = append(errs, types.ValidationError{
 			Field:   "expiry",
@@ -143,39 +123,32 @@ func validateExpiry(expiry string) []types.ValidationError {
 	now := time.Now().UTC()
 	currentYear := now.Year()
 
-	// Year calculation with proper century handling
 	fullYear := currentYear/100*100 + year2Digit
 	if fullYear < currentYear {
 		fullYear += 100
 	}
-
-	// 20-year validation
 	if fullYear > currentYear+20 {
 		errs = append(errs, types.ValidationError{
 			Field:   "expiry",
 			Message: "Expiry cannot exceed 20 years from now",
 		})
-		return errs // Early return for unrecoverable error
+		return errs
 	}
 
-	// Calculate expiry moment (last nanosecond of the month)
 	expiryTime := time.Date(fullYear, time.Month(month+1), 0, 23, 59, 59, 999999999, time.UTC)
 
-	// Time comparison (UTC)
 	if now.After(expiryTime) {
 		errs = append(errs, types.ValidationError{
 			Field:   "expiry",
 			Message: "Card has expired",
 		})
 	}
-
 	return errs
 }
 
 func validateName(name string) []types.ValidationError {
 	var errs []types.ValidationError
 
-	// Trim leading/trailing spaces first
 	name = strings.TrimSpace(name)
 
 	if len(name) == 0 {
@@ -185,28 +158,23 @@ func validateName(name string) []types.ValidationError {
 		})
 		return errs
 	}
-
-	// Allow letters, spaces, apostrophes, and hyphens
 	if !regexp.MustCompile(`^[a-zA-Z\s'-]+$`).MatchString(name) {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
 			Message: "Name must contain only letters, spaces, apostrophes, and hyphens",
 		})
 	}
-
 	if len(name) < 2 || len(name) > 40 {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
 			Message: "Name must be between 2-40 characters",
 		})
 	}
-
 	if strings.Contains(name, "  ") {
 		errs = append(errs, types.ValidationError{
 			Field:   "name",
 			Message: "Consecutive spaces are not allowed",
 		})
 	}
-
 	return errs
 }
