@@ -9,6 +9,7 @@ require (
 
 require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 )
 

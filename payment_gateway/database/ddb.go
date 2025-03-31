@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -24,6 +25,10 @@ type DynamoDBManager struct {
 	client    DynamoDBClient
 }
 
+var (
+	cardHashMutexes sync.Map
+)
+
 func NewDynamoDBManager(tableName string, client DynamoDBClient) *DynamoDBManager {
 	return &DynamoDBManager{
 		tableName: tableName,
@@ -32,6 +37,11 @@ func NewDynamoDBManager(tableName string, client DynamoDBClient) *DynamoDBManage
 }
 
 func (d *DynamoDBManager) ProcessTransaction(transaction types.Transaction) (string, error) {
+	mutexInterface, _ := cardHashMutexes.LoadOrStore(transaction.CardHash, &sync.Mutex{})
+	mutex := mutexInterface.(*sync.Mutex)
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if !isValidTransaction(transaction) {
 		return "REJECT", errors.New("transaction validation failed")
 	}
