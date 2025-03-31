@@ -1,0 +1,9 @@
+# .dockerignore
+*.md
+*.sh
+*_test.go
+.git/
+.gitignore
+Dockerfile
+out/
+bin/

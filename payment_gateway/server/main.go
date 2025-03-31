@@ -37,7 +37,7 @@ func init() {
 func main() {
 	region := getEnvWithDefault("AWS_REGION", "ap-south-1")
 	tableName := getEnvWithDefault("DYNAMODB_TABLE", "PendingTransactions")
-	port := getEnvWithDefault("PORT", "8080")
+	port := getEnvWithDefault("PORT", "8082")
 
 	log.WithFields(logrus.Fields{
 		"region": region,
@@ -155,7 +155,6 @@ func main() {
 			"processing_time_ms": processingTime,
 		}).Info("Transaction completed successfully")
 
-		// Transaction succeeded
 		c.JSON(http.StatusOK, gin.H{
 			"status":      status,
 			"message":     "Transaction processed successfully",

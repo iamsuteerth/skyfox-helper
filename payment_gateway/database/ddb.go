@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/types"
@@ -25,10 +25,6 @@ type DynamoDBManager struct {
 	client    DynamoDBClient
 }
 
-var (
-	cardHashMutexes sync.Map
-)
-
 func NewDynamoDBManager(tableName string, client DynamoDBClient) *DynamoDBManager {
 	return &DynamoDBManager{
 		tableName: tableName,
@@ -37,59 +33,50 @@ func NewDynamoDBManager(tableName string, client DynamoDBClient) *DynamoDBManage
 }
 
 func (d *DynamoDBManager) ProcessTransaction(transaction types.Transaction) (string, error) {
-	mutexInterface, _ := cardHashMutexes.LoadOrStore(transaction.CardHash, &sync.Mutex{})
-	mutex := mutexInterface.(*sync.Mutex)
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if !isValidTransaction(transaction) {
+	if !IsValidTransaction(transaction) {
 		return "REJECT", errors.New("transaction validation failed")
 	}
-
-	existingTx, err := d.getTransactionByCardHash(transaction.CardHash)
-	if err != nil {
-		return "REJECT", fmt.Errorf("error checking existing transactions: %w", err)
-	}
-
 	processingTime := 800 + rand.Intn(800)
+	transaction.ExpiryTime = time.Now().Unix() + 300
+	transaction.Timestamp = time.Now().Unix()
 
-	if existingTx != nil {
-		now := time.Now().Unix()
-		if existingTx.ExpiryTime < now {
-
-			time.Sleep(time.Duration(processingTime) * time.Millisecond)
-
-			err = d.deleteTransaction(existingTx.TransactionID)
-			if err != nil {
-				return "REJECT", fmt.Errorf("error deleting expired transaction: %w", err)
-			}
-			return "REJECT", errors.New("transaction expired")
-		} else {
-			time.Sleep(time.Duration(processingTime) * time.Millisecond)
-
-			err = d.deleteTransaction(existingTx.TransactionID)
-			if err != nil {
-				return "REJECT", fmt.Errorf("error deleting transaction during accept: %w", err)
-			}
-			return "ACCEPT", nil
-		}
+	item, err := dynamodbattribute.MarshalMap(transaction)
+	if err != nil {
+		return "REJECT", fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 
-	err = d.createTransaction(transaction)
+	input := &dynamodb.PutItemInput{
+		TableName:           aws.String(d.tableName),
+		Item:                item,
+		ConditionExpression: aws.String("attribute_not_exists(CardHash) OR ExpiryTime < :now"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":now": {N: aws.String(fmt.Sprintf("%d", time.Now().Unix()))},
+		},
+	}
+
+	_, err = d.client.PutItem(input)
 	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == dynamodb.ErrCodeConditionalCheckFailedException {
+			return "REJECT", errors.New("transaction in progress")
+		}
 		return "REJECT", fmt.Errorf("error creating transaction: %w", err)
 	}
 
 	time.Sleep(time.Duration(processingTime) * time.Millisecond)
 
+	err = d.DeleteTransaction(transaction.TransactionID)
+	if err != nil {
+		fmt.Printf("Error deleting transaction: %v\n", err)
+	}
+
 	return "ACCEPT", nil
 }
 
-func isValidTransaction(transaction types.Transaction) bool {
+func IsValidTransaction(transaction types.Transaction) bool {
 	return transaction.TransactionID != "" && transaction.CardHash != ""
 }
 
-func (d *DynamoDBManager) getTransactionByCardHash(cardHash string) (*types.Transaction, error) {
+func (d *DynamoDBManager) GetTransactionByCardHash(cardHash string) (*types.Transaction, error) {
 	input := &dynamodb.QueryInput{
 		TableName:              aws.String(d.tableName),
 		IndexName:              aws.String("CardHashIndex"),
@@ -121,6 +108,7 @@ func (d *DynamoDBManager) getTransactionByCardHash(cardHash string) (*types.Tran
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction: %w", err)
 	}
+
 	if getResult.Item == nil {
 		return nil, nil
 	}
@@ -134,7 +122,7 @@ func (d *DynamoDBManager) getTransactionByCardHash(cardHash string) (*types.Tran
 	return &transaction, nil
 }
 
-func (d *DynamoDBManager) createTransaction(transaction types.Transaction) error {
+func (d *DynamoDBManager) CreateTransaction(transaction types.Transaction) error {
 	if transaction.ExpiryTime == 0 {
 		transaction.ExpiryTime = time.Now().Unix() + 300
 	}
@@ -159,7 +147,7 @@ func (d *DynamoDBManager) createTransaction(transaction types.Transaction) error
 	return nil
 }
 
-func (d *DynamoDBManager) deleteTransaction(transactionID string) error {
+func (d *DynamoDBManager) DeleteTransaction(transactionID string) error {
 	_, err := d.client.DeleteItem(&dynamodb.DeleteItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
