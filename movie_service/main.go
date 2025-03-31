@@ -13,7 +13,7 @@ func main() {
 	r.GET("/", rootHandler)
 	r.GET("/movies", getMovies)
 	r.GET("/movies/:id", getMovie)
-	r.GET("/health", healthCheck)
+	r.GET("/mshealth", healthCheck)
 	r.GET("/favicon.ico", func(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 	})
