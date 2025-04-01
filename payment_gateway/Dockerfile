@@ -12,7 +12,7 @@ COPY database/*.go ./database/
 COPY types/*.go ./types/
 COPY validator/*.go ./validator/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -trimpath \
     -o /app/bin/payment-gateway \
