@@ -6,11 +6,10 @@ COPY go.mod go.sum ./
 RUN go mod download && \
     go mod verify
 
-COPY *.go ./
 COPY server/*.go ./server/
-COPY database/*.go ./database/
 COPY types/*.go ./types/
 COPY validator/*.go ./validator/
+COPY processor/*.go ./processor/ 
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
@@ -31,14 +30,15 @@ COPY --from=builder --chown=appuser:appgroup /app/bin/payment-gateway .
 RUN chmod +x /app/payment-gateway
 
 ENV PORT=8082 \
-    AWS_REGION=ap-south-1 \
-    DYNAMODB_TABLE=PendingTransactions \
     LOG_LEVEL=info \
     GIN_MODE=release \
-    APP_VERSION=prod
+    APP_VERSION=prod \
+    API_KEY=""
 
 USER appuser
 
 EXPOSE 8082
+
+HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -qO- http://localhost:8082/health || exit 1
 
 CMD ["./payment-gateway"]

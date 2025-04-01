@@ -1,12 +1,15 @@
 package types
 
-import "time"
+import (
+	"time"
+)
 
 type PaymentRequest struct {
-	CardNumber string    `json:"card_number"`
-	CVV        string    `json:"cvv"`
-	Expiry     string    `json:"expiry"` // Format: "MM/YY"
-	Name       string    `json:"name"`
+	CardNumber string    `json:"card_number" binding:"required"`
+	CVV        string    `json:"cvv" binding:"required"`
+	Expiry     string    `json:"expiry" binding:"required"`
+	Name       string    `json:"name" binding:"required"`
+	Amount     float64   `json:"amount" binding:"required"`
 	Timestamp  time.Time `json:"-"`
 }
 
@@ -15,9 +18,9 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
-type Transaction struct {
-	TransactionID string `json:"transactionID" dynamodbav:"TransactionID"`
-	CardHash      string `json:"cardHash" dynamodbav:"CardHash"`
-	Timestamp     int64  `json:"timestamp" dynamodbav:"Timestamp"`
-	ExpiryTime    int64  `json:"expiryTime" dynamodbav:"ExpiryTime"`
+type PaymentResponse struct {
+	Status        string `json:"status"`
+	Message       string `json:"message"`
+	TransactionID string `json:"transaction_id"`
+	RequestID     string `json:"request_id"`
 }

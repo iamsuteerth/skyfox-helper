@@ -9,12 +9,6 @@ require (
 )
 
 require (
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
-)
-
-require (
-	github.com/aws/aws-sdk-go v1.55.6
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect

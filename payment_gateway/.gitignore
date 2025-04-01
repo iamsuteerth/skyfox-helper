@@ -1,7 +1,0 @@
-# Local development
-.env
-bin/
-tmp/
-
-# Go
-vendor/

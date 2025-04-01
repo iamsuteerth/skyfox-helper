@@ -1,2 +1,0 @@
-require './service'
-run MovieService
