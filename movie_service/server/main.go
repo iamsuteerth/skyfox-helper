@@ -9,10 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/processor"
-	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/types"
-	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/validator"
+	"github.com/iamsuteerth/skyfox-helper/tree/main/movie_service/internal/services"
 	"github.com/sirupsen/logrus"
 )
 
@@ -61,8 +58,9 @@ func apiKeyAuthMiddleware() gin.HandlerFunc {
 }
 
 func main() {
-	port := getEnvWithDefault("PORT", "8082")
+	port := getEnvWithDefault("PORT", "4567")
 	apiKey := getEnvWithDefault("API_KEY", "")
+	dataPath := getEnvWithDefault("MOVIES_DATA_PATH", "data/movies.json")
 
 	logFields := logrus.Fields{
 		"port": port,
@@ -75,13 +73,17 @@ func main() {
 		log.Warn("No API_KEY set. API endpoints are unprotected!")
 	}
 
-	log.WithFields(logFields).Info("Starting payment gateway service")
+	log.WithFields(logFields).Info("Starting movie service")
+
+	movieService, err := services.NewMovieService(dataPath)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to initialize movie service")
+	}
 
 	router := gin.Default()
-	validator := validator.NewStrictValidator()
-	paymentProcessor := processor.NewPaymentProcessor()
+	router.Use(gin.Recovery())
 
-	router.GET("/health", func(c *gin.Context) {
+	router.GET("/mshealth", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "healthy",
 			"version":   getEnvWithDefault("APP_VERSION", "dev"),
@@ -92,75 +94,39 @@ func main() {
 	protected := router.Group("/")
 	protected.Use(apiKeyAuthMiddleware())
 	{
-		protected.POST("/payment", func(c *gin.Context) {
-			requestID := uuid.New().String()
-			startTime := time.Now()
+		protected.GET("/movies", func(c *gin.Context) {
+			requestLogger := log.WithFields(logrus.Fields{
+				"client_ip": c.ClientIP(),
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+			})
+			requestLogger.Info("Received request for all movies")
+
+			c.JSON(http.StatusOK, movieService.GetAllMovies())
+		})
+
+		protected.GET("/movies/:id", func(c *gin.Context) {
+			id := c.Param("id")
 
 			requestLogger := log.WithFields(logrus.Fields{
-				"request_id": requestID,
-				"client_ip":  c.ClientIP(),
-				"method":     c.Request.Method,
-				"path":       c.Request.URL.Path,
+				"client_ip": c.ClientIP(),
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+				"movie_id":  id,
 			})
+			requestLogger.Info("Received request for specific movie")
 
-			requestLogger.Info("Received payment request")
-
-			var req types.PaymentRequest
-			if err := c.ShouldBindJSON(&req); err != nil {
-				requestLogger.WithError(err).Warn("Invalid request format")
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":      "Invalid request format",
-					"request_id": requestID,
+			movie, found := movieService.GetMovieByID(id)
+			if !found {
+				requestLogger.Warn("Movie not found")
+				c.JSON(http.StatusNotFound, gin.H{
+					"status": "NOT_FOUND",
+					"error":  "Movie with requested ID not found",
 				})
 				return
 			}
 
-			req.Timestamp = time.Now()
-			errors := validator.Validate(req)
-			if len(errors) > 0 {
-				requestLogger.WithField("validation_errors", errors).Warn("Validation failed")
-				c.JSON(http.StatusUnprocessableEntity, gin.H{
-					"status":     "REJECT",
-					"errors":     errors,
-					"request_id": requestID,
-				})
-				return
-			}
-
-			transactionID := uuid.New().String()
-			requestLogger = requestLogger.WithField("transaction_id", transactionID)
-
-			status, err := paymentProcessor.ProcessPayment(req)
-
-			processingTime := time.Since(startTime).Milliseconds()
-
-			if err != nil {
-				requestLogger.WithFields(logrus.Fields{
-					"error":              err.Error(),
-					"status":             status,
-					"processing_time_ms": processingTime,
-				}).Error("Transaction processing failed")
-
-				c.JSON(http.StatusOK, gin.H{
-					"status":         status,
-					"message":        err.Error(),
-					"transaction_id": transactionID,
-					"request_id":     requestID,
-				})
-				return
-			}
-
-			requestLogger.WithFields(logrus.Fields{
-				"status":             status,
-				"processing_time_ms": processingTime,
-			}).Info("Transaction completed successfully")
-
-			c.JSON(http.StatusOK, gin.H{
-				"status":         status,
-				"message":        "Transaction processed successfully",
-				"transaction_id": transactionID,
-				"request_id":     requestID,
-			})
+			c.JSON(http.StatusOK, movie)
 		})
 	}
 

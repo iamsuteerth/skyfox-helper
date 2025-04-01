@@ -1,10 +1,4 @@
-package main
-
-import (
-	"encoding/json"
-	"log"
-	"os"
-)
+package models
 
 type Movie struct {
 	Title      string   `json:"Title"`
@@ -37,21 +31,4 @@ type Movie struct {
 type Rating struct {
 	Source string `json:"Source"`
 	Value  string `json:"Value"`
-}
-
-func readMoviesData() ([]Movie, error) {
-	file, err := os.ReadFile("movies.json")
-	if err != nil {
-		log.Printf("Failed to read movies.json: %v", err)
-		return nil, err
-	}
-
-	var movies []Movie
-	err = json.Unmarshal(file, &movies)
-	if err != nil {
-		log.Printf("Failed to parse movies.json: %v", err)
-		return nil, err
-	}
-
-	return movies, nil
 }
