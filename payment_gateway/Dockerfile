@@ -39,6 +39,6 @@ USER appuser
 
 EXPOSE 8082
 
-HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -qO- http://localhost:8082/health || exit 1
+HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -qO- http://localhost:8082/pshealth || exit 1
 
 CMD ["./payment-gateway"]

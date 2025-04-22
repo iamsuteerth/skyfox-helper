@@ -21,7 +21,7 @@ Payment Service is part of the Skyfox Helper repository. It provides a robust pa
 
 ### Health Check
 ```
-GET /health
+GET /pshealth
 ```
 Returns the health status of the service.
 

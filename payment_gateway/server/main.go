@@ -81,7 +81,7 @@ func main() {
 	validator := validator.NewStrictValidator()
 	paymentProcessor := processor.NewPaymentProcessor()
 
-	router.GET("/health", func(c *gin.Context) {
+	router.GET("/pshealth", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "healthy",
 			"version":   getEnvWithDefault("APP_VERSION", "dev"),
