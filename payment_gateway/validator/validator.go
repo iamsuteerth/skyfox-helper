@@ -123,10 +123,8 @@ func validateExpiry(expiry string) []types.ValidationError {
 	now := time.Now().UTC()
 	currentYear := now.Year()
 
-	fullYear := currentYear/100*100 + year2Digit
-	if fullYear < currentYear {
-		fullYear += 100
-	}
+	fullYear := 2000 + year2Digit
+
 	if fullYear > currentYear+20 {
 		errs = append(errs, types.ValidationError{
 			Field:   "expiry",
