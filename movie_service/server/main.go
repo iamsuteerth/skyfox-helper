@@ -138,7 +138,7 @@ func main() {
 		})
 	}
 
-	protectedProd := router.Group("/")
+	protectedProd := router.Group("/movie-service")
 	protectedProd.Use(apiKeyAuthMiddleware())
 	{
 		protectedProd.GET("/movies", func(c *gin.Context) {
