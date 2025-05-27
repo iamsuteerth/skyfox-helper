@@ -2,15 +2,17 @@ package types
 
 import (
 	"time"
+
+	"github.com/govalues/decimal"
 )
 
 type PaymentRequest struct {
-	CardNumber string    `json:"card_number" binding:"required"`
-	CVV        string    `json:"cvv" binding:"required"`
-	Expiry     string    `json:"expiry" binding:"required"`
-	Name       string    `json:"name" binding:"required"`
-	Amount     float64   `json:"amount" binding:"required"`
-	Timestamp  time.Time `json:"-"`
+	CardNumber string          `json:"card_number" binding:"required"`
+	CVV        string          `json:"cvv" binding:"required"`
+	Expiry     string          `json:"expiry" binding:"required"`
+	Name       string          `json:"name" binding:"required"`
+	Amount     decimal.Decimal `json:"amount" binding:"required"`
+	Timestamp  time.Time       `json:"-"`
 }
 
 type ValidationError struct {

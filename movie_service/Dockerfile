@@ -11,7 +11,7 @@ COPY internal/models/*.go ./internal/models/
 COPY internal/services/*.go ./internal/services/
 COPY data/*.json ./data/
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
     -ldflags="-w -s" \
     -trimpath \
     -o /app/bin/movie-service \

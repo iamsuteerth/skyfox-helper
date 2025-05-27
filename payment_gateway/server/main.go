@@ -89,10 +89,95 @@ func main() {
 		})
 	})
 
+	// Added for production routes
+	router.GET("/payment-service/pshealth", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":    "healthy",
+			"version":   getEnvWithDefault("APP_VERSION", "dev"),
+			"timestamp": time.Now().Unix(),
+		})
+	})
+
 	protected := router.Group("/")
 	protected.Use(apiKeyAuthMiddleware())
 	{
 		protected.POST("/payment", func(c *gin.Context) {
+			requestID := uuid.New().String()
+			startTime := time.Now()
+
+			requestLogger := log.WithFields(logrus.Fields{
+				"request_id": requestID,
+				"client_ip":  c.ClientIP(),
+				"method":     c.Request.Method,
+				"path":       c.Request.URL.Path,
+			})
+
+			requestLogger.Info("Received payment request")
+
+			var req types.PaymentRequest
+			if err := c.ShouldBindJSON(&req); err != nil {
+				requestLogger.WithError(err).Warn("Invalid request format")
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":      "Invalid request format",
+					"request_id": requestID,
+				})
+				return
+			}
+
+			req.Timestamp = time.Now()
+			errors := validator.Validate(req)
+			if len(errors) > 0 {
+				requestLogger.WithField("validation_errors", errors).Warn("Validation failed")
+				c.JSON(http.StatusUnprocessableEntity, gin.H{
+					"status":     "REJECT",
+					"errors":     errors,
+					"request_id": requestID,
+				})
+				return
+			}
+
+			transactionID := uuid.New().String()
+			requestLogger = requestLogger.WithField("transaction_id", transactionID)
+
+			status, err := paymentProcessor.ProcessPayment(req)
+
+			processingTime := time.Since(startTime).Milliseconds()
+
+			if err != nil {
+				requestLogger.WithFields(logrus.Fields{
+					"error":              err.Error(),
+					"status":             status,
+					"processing_time_ms": processingTime,
+				}).Error("Transaction processing failed")
+
+				c.JSON(http.StatusOK, gin.H{
+					"status":         status,
+					"message":        err.Error(),
+					"transaction_id": transactionID,
+					"request_id":     requestID,
+				})
+				return
+			}
+
+			requestLogger.WithFields(logrus.Fields{
+				"status":             status,
+				"processing_time_ms": processingTime,
+			}).Info("Transaction completed successfully")
+
+			c.JSON(http.StatusOK, gin.H{
+				"status":         status,
+				"message":        "Transaction processed successfully",
+				"transaction_id": transactionID,
+				"request_id":     requestID,
+			})
+		})
+	}
+
+	// Added for production routes
+	protectedProd := router.Group("/payment-service")
+	protectedProd.Use(apiKeyAuthMiddleware())
+	{
+		protectedProd.POST("/payment", func(c *gin.Context) {
 			requestID := uuid.New().String()
 			startTime := time.Now()
 

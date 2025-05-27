@@ -4,18 +4,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/govalues/decimal"
 	"github.com/iamsuteerth/skyfox-helper/tree/main/payment_gateway/types"
 )
 
 func TestProcessPayment(t *testing.T) {
 	processor := NewPaymentProcessor()
 
+	testAmount, _ := decimal.NewFromFloat64(100.0)
+
 	req := types.PaymentRequest{
 		CardNumber: "4111111111111111",
 		CVV:        "123",
 		Expiry:     "12/25",
 		Name:       "Test User",
-		Amount:     100.0,
+		Amount:     testAmount,
 		Timestamp:  time.Now(),
 	}
 

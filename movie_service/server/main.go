@@ -91,6 +91,14 @@ func main() {
 		})
 	})
 
+	router.GET("/movie-service/mshealth", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":    "healthy",
+			"version":   getEnvWithDefault("APP_VERSION", "dev"),
+			"timestamp": time.Now().Unix(),
+		})
+	})
+
 	protected := router.Group("/")
 	protected.Use(apiKeyAuthMiddleware())
 	{
@@ -106,6 +114,45 @@ func main() {
 		})
 
 		protected.GET("/movies/:id", func(c *gin.Context) {
+			id := c.Param("id")
+
+			requestLogger := log.WithFields(logrus.Fields{
+				"client_ip": c.ClientIP(),
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+				"movie_id":  id,
+			})
+			requestLogger.Info("Received request for specific movie")
+
+			movie, found := movieService.GetMovieByID(id)
+			if !found {
+				requestLogger.Warn("Movie not found")
+				c.JSON(http.StatusNotFound, gin.H{
+					"status": "NOT_FOUND",
+					"error":  "Movie with requested ID not found",
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, movie)
+		})
+	}
+
+	protectedProd := router.Group("/")
+	protectedProd.Use(apiKeyAuthMiddleware())
+	{
+		protectedProd.GET("/movies", func(c *gin.Context) {
+			requestLogger := log.WithFields(logrus.Fields{
+				"client_ip": c.ClientIP(),
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+			})
+			requestLogger.Info("Received request for all movies")
+
+			c.JSON(http.StatusOK, movieService.GetAllMovies())
+		})
+
+		protectedProd.GET("/movies/:id", func(c *gin.Context) {
 			id := c.Param("id")
 
 			requestLogger := log.WithFields(logrus.Fields{
