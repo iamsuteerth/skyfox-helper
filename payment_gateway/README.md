@@ -16,6 +16,7 @@ Payment Service is part of the Skyfox Helper repository. It provides a robust pa
 - Structured JSON responses
 - Health check endpoint
 - Containerized for easy deployment
+- Randomized small probability of payment failure emulating real life scenarios.
 
 ## API Endpoints
 
