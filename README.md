@@ -17,8 +17,6 @@ Both services are built with Go, follow modern microservice architecture princip
 
 The Movie Service provides access to a database of movies with detailed information including titles, ratings, plot summaries, and other metadata.
 
-![Movie Service Architecture](./movie-service-arch.png)
-
 **Key Features:**
 - RESTful API for accessing movie data
 - Get all movies or specific movie details by ID
